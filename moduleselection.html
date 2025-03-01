@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module Selection - Meloform</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/js/all.min.js"></script>
+</head>
+<body>
+    <div class="module-selection">
+        <h1>Choose Your Music Experience</h1>
+        <p>Immerse yourself in music tailored to your surroundings and mood.</p>
+        <div class="modules">
+            <div class="module weather" onclick="redirectTo('weather')">
+                <i class="fas fa-cloud-moon-rain"></i>
+                <h2>Weather-Based Music</h2>
+                <p>Let the weather decide your playlist. Feel the rhythm of the skies! 🌦️</p>
+            </div>
+            <div class="module emotion" onclick="redirectTo('emotion')">
+                <i class="fas fa-smile"></i>
+                <h2>Emotion-Based Music</h2>
+                <p>Music that understands your mood. Let the beats match your feelings! 😊</p>
+            </div>
+            <div class="module vibe" onclick="redirectTo('vibe')">
+                <i class="fas fa-music"></i>
+                <h2>Vibe Mode</h2>
+                <p>Enjoy a handpicked selection of songs for every vibe! 🎼</p>
+            </div>
+        </div>
+        <!-- <button class="back-button" onclick="goBack()">⬅ Back to Login</button> -->
+    </div>
+    <script>
+        function redirectTo(mode) {
+            window.location.href = mode + "-module.html";
+        }
+        function goBack() {
+            window.location.href = "login.html";
+        }
+    </script>
+</body>
+</html>
