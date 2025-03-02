@@ -1,46 +1,42 @@
 const express = require("express");
-const axios = require("axios");
+const connectDB = require("./config/db");
+require("dotenv").config();
+const cors = require("cors");
+
+const authRoutes = require("./routes/auth");
+const userRoutes = require("./routes/user");
+const weatherRoutes = require("./routes/weather");
+const musicRoutes = require("./routes/music"); // ✅ Music Routes
+
 const app = express();
-const PORT = 5000;
 
-// Sample fallback MP3s (You can add your own links)
-const fallbackSongs = {
-  sunny: [
-    { name: "Summer Vibes", artist: "DJ Sun", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
-  ],
-  rainy: [
-    { name: "Raindrops", artist: "Calm Mood", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
-  ],
-  cloudy: [
-    { name: "Cloudy Dreams", artist: "Sky Beats", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" },
-  ],
-};
+// Middleware
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// API to fetch songs based on weather
-app.get("/api/music/:weather", async (req, res) => {
-    const { weather } = req.params;
+app.use(cors({
+    origin: "http://127.0.0.1:5500", // Allow frontend origin
+    methods: "GET,POST",
+    allowedHeaders: "Content-Type"
+}));
 
-    try {
-        // 🔴 Replace this with your actual music API if needed
-        const response = await axios.get("https://api.example.com/getSongs");  
-        let songs = response.data;
+// Connect to MongoDB
+connectDB();
 
-        // ✅ Filter songs with valid MP3 URLs
-        let validSongs = songs.filter(song => song.url && song.url.endsWith(".mp3"));
+// Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/weather", weatherRoutes);
+app.use("/api/music", musicRoutes);
 
-        // 🔥 If no valid MP3s, use fallback
-        if (validSongs.length === 0) {
-            console.warn("No valid MP3 found! Using fallback.");
-            validSongs = fallbackSongs[weather] || fallbackSongs.sunny;
-        }
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 
-        res.json(validSongs);
-    } catch (error) {
-        console.error("Error fetching music:", error);
-        res.status(500).json({ message: "Error fetching music" });
-    }
-});
-
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+// Global Error Handler
+app.use((err, req, res, next) => {
+    console.error("🔥 Global Error Handler:", err);
+    res.status(500).json({ 
+        message: "Internal Server Error", 
+        error: err.message || JSON.stringify(err, null, 2) 
+    });
 });

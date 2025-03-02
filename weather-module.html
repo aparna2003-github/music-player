@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weather & Music App</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
     <style>
         body {
@@ -45,13 +49,6 @@
             background: rgba(0, 0, 0, 0.6);
             color: #fff;
         }
-        .music-thumbnail {
-            width: 200px;
-            height: 200px;
-            border-radius: 20px;
-            background: url('https://via.placeholder.com/200') center/cover;
-            margin-bottom: 20px;
-        }
         .music-controls button, .playlist-button {
             background: #2b012062;
             border: none;
@@ -79,9 +76,16 @@
             background: #ff4500;
             border-radius: 10px;
         }
+        #track-thumbnail {
+            width: 150px;
+            height: 150px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
+
 <div class="container">
     <!-- Weather Section -->
     <div class="weather-section">
@@ -92,9 +96,9 @@
 
     <!-- Music Section -->
     <div class="music-section">
-        <div class="music-thumbnail" id="album-cover"></div>
+        <img id="track-thumbnail" src="" alt="Song Thumbnail">
         <h3 id="track-name">No Track Loaded</h3>
-        <button class="playlist-button" onclick="fetchMusic()">Load Playlist</button>
+        <button class="playlist-button" data-bs-toggle="modal" data-bs-target="#playlistModal">Load Playlist</button>
         <div class="music-controls">
             <button onclick="prevSong()">⏮️</button>
             <button id="play-btn" onclick="togglePlay()">▶️</button>
@@ -109,77 +113,57 @@
     </div>
 </div>
 
+<!-- Playlist Modal -->
+<div class="modal fade" id="playlistModal" tabindex="-1" aria-labelledby="playlistModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="playlistModalLabel">Playlist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Play</th>
+                        </tr>
+                    </thead>
+                    <tbody id="playlistTableBody">
+                        <!-- Songs will be dynamically inserted here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
     let playlist = [];
-    let currentSongIndex = 0;
-    let currentWeather = ""; 
-    let isPlaying = false;
-
-    const audioPlayer = document.getElementById("audio-player");
-    const audioSource = document.getElementById("audio-source");
-    const playButton = document.getElementById("play-btn");
-    const progressBar = document.getElementById("progress-bar");
-    const progressContainer = document.querySelector(".progress-container");
-
-    function togglePlay() {
-        if (audioPlayer.paused) {
-            audioPlayer.play();
-            playButton.innerText = "⏸️";
-            isPlaying = true;
-        } else {
-            audioPlayer.pause();
-            playButton.innerText = "▶️";
-            isPlaying = false;
-        }
-    }
-
-    function updateProgressBar() {
-        if (audioPlayer.duration) {
-            let percent = (audioPlayer.currentTime / audioPlayer.duration) * 100;
-            progressBar.style.width = percent + "%";
-        }
-    }
-
-    function seek(event) {
-        let clickPosition = event.offsetX / progressContainer.offsetWidth;
-        audioPlayer.currentTime = clickPosition * audioPlayer.duration;
-    }
-
-    function prevSong() {
-        if (currentSongIndex > 0) {
-            currentSongIndex--;
-            loadSong(playlist[currentSongIndex]);
-        }
-    }
-
-    function nextSong() {
-        if (currentSongIndex < playlist.length - 1) {
-            currentSongIndex++;
-            loadSong(playlist[currentSongIndex]);
-        }
-    }
+    let currentWeather = "";
+    let currentIndex = 0;
+    let audio = document.getElementById("audio-player");
+    let playBtn = document.getElementById("play-btn");
 
     async function fetchWeather() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(async position => {
                 let lat = position.coords.latitude;
                 let lon = position.coords.longitude;
-                let apiKey = "19476fb0e7f5ed6c6699f2a1fcbabf57";
+                let apiKey = "6d4abe97ad461014cf7c21d74df8f4fb"; 
 
                 try {
                     let response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`);
                     let data = await response.json();
-                    
+
                     document.getElementById("temperature").innerText = `${data.main.temp}°C`;
                     document.getElementById("weather-desc").innerText = data.weather[0].description;
 
-                    currentWeather = data.weather[0]?.main?.toLowerCase();
-
-                    if (currentWeather) {
-                        console.log("Detected weather condition:", currentWeather);
-                    } else {
-                        console.error("Weather condition is missing in API response!");
-                    }
+                    currentWeather = data.weather[0].main;
+                    fetchMusic();
                 } catch (error) {
                     console.error("Error fetching weather data:", error);
                 }
@@ -189,70 +173,68 @@
         }
     }
 
-    function fetchMusic() {
-        console.log("Fetching music for weather:", currentWeather);
+    async function fetchMusic() {
+        try {
+            let response = await fetch(`http://localhost:5000/api/music/playlist/${encodeURIComponent(currentWeather)}`);
+            let data = await response.json();
 
-        if (!currentWeather) {
-            console.error("Weather type is undefined! Ensure weather is fetched first.");
-            return;
+            if (data.music.length > 0) {
+                playlist = data.music;
+                let tableBody = document.getElementById("playlistTableBody");
+                tableBody.innerHTML = "";
+
+                playlist.forEach((song, index) => {
+                    let row = `<tr>
+                        <td>${song.title}</td>
+                        <td><button class="btn btn-primary btn-sm" onclick="loadSongByIndex(${index})">▶ Play</button></td>
+                    </tr>`;
+                    tableBody.innerHTML += row;
+                });
+            }
+        } catch (error) {
+            console.error("Error fetching music:", error);
         }
-
-        fetch(`http://localhost:5000/api/music/${currentWeather}`)
-            .then(response => response.json())
-            .then(data => {
-                console.log("Music data received:", data);
-                if (data.length > 0) {
-                    playlist = data;
-                    currentSongIndex = 0;
-                    loadSong(data[0]);
-                }
-            })
-            .catch(error => console.error("Error fetching music:", error));
     }
 
-    function loadSong(song) {
-    let audioPlayer = document.getElementById("audio-player");
-    let audioSource = document.getElementById("audio-source");
-    let playButton = document.getElementById("play-btn");
+    function loadSongByIndex(index) {
+        currentIndex = index;
+        let song = playlist[currentIndex];
+        document.getElementById("track-name").innerText = song.title;
+        document.getElementById("audio-source").src = song.musicFile;
+        document.getElementById("track-thumbnail").src = song.thumbnail;
+        audio.load();
+        audio.play();
+        playBtn.innerText = "⏸️";
 
-    console.log("Trying to play:", song.url);
+        let modal = bootstrap.Modal.getInstance(document.getElementById("playlistModal"));
+        modal.hide();
+    }
 
-    // List of fallback MP3s
-    const fallbackSongs = [
-        "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-        "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-        "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-        "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-        "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3"
-    ];
+    function togglePlay() {
+        if (audio.paused) {
+            audio.play();
+            playBtn.innerText = "⏸️";
+        } else {
+            audio.pause();
+            playBtn.innerText = "▶️";
+        }
+    }
 
-    // Use the original song details but randomize audio if URL is invalid
-    let finalSongUrl = song.url && song.url.endsWith(".mp3") ? song.url : fallbackSongs[Math.floor(Math.random() * fallbackSongs.length)];
+    function prevSong() {
+        loadSongByIndex((currentIndex - 1 + playlist.length) % playlist.length);
+    }
 
-    // Update UI with original song details
-    document.getElementById("track-name").innerText = `${song.artist.name} - ${song.name}`;
-    document.getElementById("album-cover").style.backgroundImage = `url('${song.image[3]['#text']}')`;
+    function nextSong() {
+        loadSongByIndex((currentIndex + 1) % playlist.length);
+    }
 
-    // Stop current playback
-    audioPlayer.pause();
-    audioSource.src = finalSongUrl;
-    audioPlayer.load();  
+    audio.addEventListener("timeupdate", function () {
+        document.getElementById("progress-bar").style.width = `${(audio.currentTime / audio.duration) * 100}%`;
+    });
 
-    // Play when ready
-    audioPlayer.oncanplay = () => {
-        audioPlayer.play()
-            .then(() => {
-                playButton.innerText = "⏸️";
-                console.log("Playing:", finalSongUrl);
-            })
-            .catch(error => console.error("Playback failed:", error));
-    };
-}
-
-
-
-
-    audioPlayer.addEventListener("timeupdate", updateProgressBar);
+    function seek(event) {
+        audio.currentTime = (event.offsetX / event.target.clientWidth) * audio.duration;
+    }
 
     fetchWeather();
 </script>

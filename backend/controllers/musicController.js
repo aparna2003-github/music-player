@@ -1,25 +1,46 @@
-const axios = require("axios");
+const Music = require("../models/songs");
 
-const LASTFM_API_KEY = process.env.LASTFM_API_KEY;
-const LASTFM_API = "http://ws.audioscrobbler.com/2.0/";
-
-exports.getMusicByWeather = async (req, res) => {
-    const { weather } = req.params; // Example: 'rainy', 'sunny', 'cloudy'
-    console.log("Using LastFM API Key:", LASTFM_API_KEY);
-console.log("Fetching music for weather:", weather);
-
-    
+exports.uploadMusic = async (req, res) => {
     try {
-        const response = await axios.get(`${LASTFM_API}?method=tag.gettoptracks&tag=${weather}&api_key=${LASTFM_API_KEY}&format=json`);
-        const tracks = response.data.tracks.track;
-        
-        if (!tracks || tracks.length === 0) {
-            return res.status(404).json({ message: "No music found for this weather." });
+        console.log("✅ Request Body:", req.body);
+        console.log("✅ Uploaded Files:", req.files);
+
+        const { title, weatherCondition } = req.body;
+
+        if (!req.files || !req.files["musicFile"]) {
+            return res.status(400).json({ message: "Music file is required." });
         }
 
-        res.json(tracks);
+        const musicFile = req.files["musicFile"][0]?.path;
+        const thumbnail = req.files["thumbnail"]?.[0]?.path || null;
+
+        const newMusic = new Music({ title, weatherCondition, musicFile, thumbnail });
+        await newMusic.save();
+
+        res.json({ message: "✅ Music uploaded successfully!", music: newMusic });
+
     } catch (error) {
-        console.error("Error fetching Last.fm music:", error);
-        res.status(500).json({ message: "Failed to fetch music data." });
+        console.error("❌ Error uploading music:", JSON.stringify(error, null, 2));
+        res.status(500).json({ 
+            message: "❌ Failed to upload music.", 
+            error: error.message || JSON.stringify(error)
+        });
+    }
+};
+
+exports.getMusicByWeather = async (req, res) => {
+    try {
+        console.log("🎵 Fetching music for weather:", req.params.weather);
+
+        const musicList = await Music.find({ weatherCondition: req.params.weather });
+
+        res.json({ message: "✅ Music list fetched!", music: musicList });
+
+    } catch (error) {
+        console.error("❌ Error fetching music:", JSON.stringify(error, null, 2));
+        res.status(500).json({ 
+            message: "❌ Failed to fetch music.", 
+            error: error.message || JSON.stringify(error)
+        });
     }
 };
