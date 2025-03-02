@@ -1,9 +1,7 @@
 const express = require("express");
 const router = express.Router();
+const { getWeather } = require("../controllers/weatherController");
 
-// Example route
-router.get("/", (req, res) => {
-  res.send("weather Route Working");
-});
+router.get("/:lat/:lon", getWeather);
 
 module.exports = router;

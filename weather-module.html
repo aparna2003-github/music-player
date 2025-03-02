@@ -25,39 +25,25 @@
             border-radius: 20px;
             overflow: hidden;
         }
-        .weather-section {
+        .weather-section, .music-section {
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             text-align: center;
+            padding: 20px;
+        }
+        .weather-section {
             background: rgba(255, 255, 255, 0.3);
             backdrop-filter: blur(10px);
             color: #333;
-            padding: 20px;
-            animation: weatherAnim 5s infinite alternate;
-        }
-        @keyframes weatherAnim {
-            0% {transform: scale(1);}
-            100% {transform: scale(1.05);}
-        }
-        .weather-section h1 {
-            font-size: 4em;
-            margin: 0;
         }
         .weather-icon {
             font-size: 6em;
-            margin-bottom: 10px;
         }
         .music-section {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
             background: rgba(0, 0, 0, 0.6);
             color: #fff;
-            padding: 20px;
         }
         .music-thumbnail {
             width: 200px;
@@ -65,9 +51,8 @@
             border-radius: 20px;
             background: url('https://via.placeholder.com/200') center/cover;
             margin-bottom: 20px;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
         }
-        .music-controls button {
+        .music-controls button, .playlist-button {
             background: #2b012062;
             border: none;
             padding: 10px 20px;
@@ -77,27 +62,199 @@
             transition: background 0.3s;
             color: white;
         }
-        .music-controls button:hover {
+        .music-controls button:hover, .playlist-button:hover {
             background: #ff4500;
+        }
+        .progress-container {
+            width: 100%;
+            height: 5px;
+            background: #888;
+            border-radius: 10px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        #progress-bar {
+            width: 0%;
+            height: 5px;
+            background: #ff4500;
+            border-radius: 10px;
         }
     </style>
 </head>
 <body>
 <div class="container">
+    <!-- Weather Section -->
     <div class="weather-section">
         <div class="weather-icon">☀️</div>
-        <h1>28°C</h1>
-        <p>Sunny Day</p>
+        <h1 id="temperature">--°C</h1>
+        <p id="weather-desc">Fetching Weather...</p>
     </div>
+
+    <!-- Music Section -->
     <div class="music-section">
-        <div class="music-thumbnail"></div>
+        <div class="music-thumbnail" id="album-cover"></div>
+        <h3 id="track-name">No Track Loaded</h3>
+        <button class="playlist-button" onclick="fetchMusic()">Load Playlist</button>
         <div class="music-controls">
-            <button>⏮️</button>
-            <button>▶️</button>
-            <button>⏸️</button>
-            <button>⏭️</button>
+            <button onclick="prevSong()">⏮️</button>
+            <button id="play-btn" onclick="togglePlay()">▶️</button>
+            <button onclick="nextSong()">⏭️</button>
+        </div>
+        <audio id="audio-player">
+            <source id="audio-source" src="" type="audio/mpeg">
+        </audio>
+        <div class="progress-container" onclick="seek(event)">
+            <div id="progress-bar"></div>
         </div>
     </div>
 </div>
+
+<script>
+    let playlist = [];
+    let currentSongIndex = 0;
+    let currentWeather = ""; 
+    let isPlaying = false;
+
+    const audioPlayer = document.getElementById("audio-player");
+    const audioSource = document.getElementById("audio-source");
+    const playButton = document.getElementById("play-btn");
+    const progressBar = document.getElementById("progress-bar");
+    const progressContainer = document.querySelector(".progress-container");
+
+    function togglePlay() {
+        if (audioPlayer.paused) {
+            audioPlayer.play();
+            playButton.innerText = "⏸️";
+            isPlaying = true;
+        } else {
+            audioPlayer.pause();
+            playButton.innerText = "▶️";
+            isPlaying = false;
+        }
+    }
+
+    function updateProgressBar() {
+        if (audioPlayer.duration) {
+            let percent = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+            progressBar.style.width = percent + "%";
+        }
+    }
+
+    function seek(event) {
+        let clickPosition = event.offsetX / progressContainer.offsetWidth;
+        audioPlayer.currentTime = clickPosition * audioPlayer.duration;
+    }
+
+    function prevSong() {
+        if (currentSongIndex > 0) {
+            currentSongIndex--;
+            loadSong(playlist[currentSongIndex]);
+        }
+    }
+
+    function nextSong() {
+        if (currentSongIndex < playlist.length - 1) {
+            currentSongIndex++;
+            loadSong(playlist[currentSongIndex]);
+        }
+    }
+
+    async function fetchWeather() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(async position => {
+                let lat = position.coords.latitude;
+                let lon = position.coords.longitude;
+                let apiKey = "19476fb0e7f5ed6c6699f2a1fcbabf57";
+
+                try {
+                    let response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${apiKey}`);
+                    let data = await response.json();
+                    
+                    document.getElementById("temperature").innerText = `${data.main.temp}°C`;
+                    document.getElementById("weather-desc").innerText = data.weather[0].description;
+
+                    currentWeather = data.weather[0]?.main?.toLowerCase();
+
+                    if (currentWeather) {
+                        console.log("Detected weather condition:", currentWeather);
+                    } else {
+                        console.error("Weather condition is missing in API response!");
+                    }
+                } catch (error) {
+                    console.error("Error fetching weather data:", error);
+                }
+            });
+        } else {
+            console.error("Geolocation not supported.");
+        }
+    }
+
+    function fetchMusic() {
+        console.log("Fetching music for weather:", currentWeather);
+
+        if (!currentWeather) {
+            console.error("Weather type is undefined! Ensure weather is fetched first.");
+            return;
+        }
+
+        fetch(`http://localhost:5000/api/music/${currentWeather}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log("Music data received:", data);
+                if (data.length > 0) {
+                    playlist = data;
+                    currentSongIndex = 0;
+                    loadSong(data[0]);
+                }
+            })
+            .catch(error => console.error("Error fetching music:", error));
+    }
+
+    function loadSong(song) {
+    let audioPlayer = document.getElementById("audio-player");
+    let audioSource = document.getElementById("audio-source");
+    let playButton = document.getElementById("play-btn");
+
+    console.log("Trying to play:", song.url);
+
+    // List of fallback MP3s
+    const fallbackSongs = [
+        "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+        "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+        "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+        "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+        "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3"
+    ];
+
+    // Use the original song details but randomize audio if URL is invalid
+    let finalSongUrl = song.url && song.url.endsWith(".mp3") ? song.url : fallbackSongs[Math.floor(Math.random() * fallbackSongs.length)];
+
+    // Update UI with original song details
+    document.getElementById("track-name").innerText = `${song.artist.name} - ${song.name}`;
+    document.getElementById("album-cover").style.backgroundImage = `url('${song.image[3]['#text']}')`;
+
+    // Stop current playback
+    audioPlayer.pause();
+    audioSource.src = finalSongUrl;
+    audioPlayer.load();  
+
+    // Play when ready
+    audioPlayer.oncanplay = () => {
+        audioPlayer.play()
+            .then(() => {
+                playButton.innerText = "⏸️";
+                console.log("Playing:", finalSongUrl);
+            })
+            .catch(error => console.error("Playback failed:", error));
+    };
+}
+
+
+
+
+    audioPlayer.addEventListener("timeupdate", updateProgressBar);
+
+    fetchWeather();
+</script>
 </body>
 </html>
