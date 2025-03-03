@@ -18,4 +18,7 @@ const upload = multer({ storage });
 router.get("/:weather", getPlaylistByWeather);
 router.post("/upload", upload.single("song"), uploadSong);
 
+router.get("/:emotion", getPlaylistByEmotion);
+router.post("/upload", upload.single("song"), uploadSong);
+
 module.exports = router;
