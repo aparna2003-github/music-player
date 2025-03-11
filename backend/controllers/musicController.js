@@ -1,4 +1,27 @@
+const songs = require("../models/songs");
 const Music = require("../models/songs");
+// const Song = require("../models/songs");
+
+exports.getAllSongs = async (req, res) => {
+    try {
+        const songs = await songs.find();
+        res.json(songs);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.addSong = async (req, res) => {
+    try {
+        const { title, thumbnail, weather, emotion, mp3 } = req.body;
+        const newSong = new Song({ title, thumbnail, weather, emotion, mp3 });
+        await newSong.save();
+        res.status(201).json({ message: "Song added successfully", song: newSong });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
 
 exports.uploadMusic = async (req, res) => {
     try {
@@ -68,6 +91,30 @@ exports.uploadMusic = async (req, res) => {
         console.error("❌ Error uploading music:", JSON.stringify(error, null, 2));
         res.status(500).json({ 
             message: "❌ Failed to upload music.", 
+            error: error.message || JSON.stringify(error)
+        });
+    }
+};
+
+exports.getMusic = async (req, res) => {
+    try {
+        const { emotion } = req.query;
+
+        console.log(`🎵 Fetching music for Emotion: ${emotion}`);
+
+        if (!emotion) {
+            return res.status(400).json({ message: "❌ Emotion is required!" });
+        }
+
+        // Fetch songs based on emotion
+        const musicList = await Music.find({ emotion: { $regex: new RegExp(emotion, "i") } });
+
+        res.json({ message: "✅ Music list fetched!", music: musicList });
+
+    } catch (error) {
+        console.error("❌ Error fetching music:", JSON.stringify(error, null, 2));
+        res.status(500).json({ 
+            message: "❌ Failed to fetch music.", 
             error: error.message || JSON.stringify(error)
         });
     }

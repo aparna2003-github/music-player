@@ -1,24 +1,12 @@
 const express = require("express");
-const axios = require("axios");
+const emotionController = require("../controllers/emotionController");
 
 const router = express.Router();
 
-// Emotion detection route
-router.post("/detect", async (req, res) => {
-    try {
-        const { image } = req.body;
-        if (!image) {
-            return res.status(400).json({ error: "No image provided"});
-        }
+// Route to detect emotion from camera feed
+router.get("/detect", emotionController.detectEmotion); // Ensure function reference
 
-        // Send to Python DeepFace server
-        const response = await axios.post("http://127.0.0.1:5000/detect", { image });
-
-        res.json(response.data); // Forward response to frontend
-    } catch (error) {
-        console.error("Emotion detection failed:", error.message);
-        res.status(500).json({ error: "Emotion detection failed" });
-    }
-});
+// Route to fetch music based on detected emotion
+router.get("/music/:emotion",emotionController.getMusicByEmotion);
 
 module.exports = router;

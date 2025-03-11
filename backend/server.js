@@ -6,8 +6,8 @@ const cors = require("cors");
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
 const weatherRoutes = require("./routes/weather");
-const musicRoutes = require("./routes/music"); // ✅ Music Routes
-const emotionRoutes = require("./routes/emotion"); // ✅ Emotion Routes
+const musicRoutes = require("./routes/music");
+const emotionRoutes = require("./routes/emotion");
 
 const app = express();
 
@@ -31,14 +31,16 @@ app.use("/api/weather", weatherRoutes);
 app.use("/api/music", musicRoutes);
 app.use("/api/emotion", emotionRoutes);
 
+
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 
 // Global Error Handler
 app.use((err, req, res, next) => {
     console.error("🔥 Global Error Handler:", err);
-    res.status(500).json({ 
-        message: "Internal Server Error", 
-        error: err.message || JSON.stringify(err, null, 2) 
+    res.status(500).json({
+        message: "Internal Server Error",
+        error: err.message || JSON.stringify(err, null, 2)
     });
 });
