@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion-Based Music Player</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #6e0f56, #ff4500);
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            width: 90%;
+            height: 80%;
+            gap: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        .emotion-section, .music-section {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+        .emotion-section {
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            color: #333;
+        }
+        .music-section {
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+        }
+        .emoji {
+            font-size: 5rem;
+        }
+        .music-controls button, .playlist-button {
+            background: #2b012062;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: background 0.3s;
+            color: white;
+        }
+        .music-controls button:hover, .playlist-button:hover {
+            background: #ff4500;
+        }
+        #audio-player {
+            width: 100%;
+        }
+        .progress-bar-container {
+            width: 100%;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background-color: #ccc;
+        }
+        .progress-bar-filled {
+            height: 100%;
+            background-color: #ff4500;
+            width: 0%; /* Default width, will update dynamically */
+        }
+        #track-thumbnail {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+        }
+        .thumbnail-placeholder {
+            background-color: #ccc;
+            width: 150px;
+            height: 150px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="emotion-section">
+        <h2>Your Emotion</h2>
+        <div id="emotion-emoji" class="emoji">😐</div>
+        <h3 id="emotion-text">Detected Emotion: None</h3>
+        <button class="btn btn-primary" id="fetchEmotionBtn">Fetch Emotion</button>
+    </div>
+    <div class="music-section">
+        <div id="track-thumbnail" class="thumbnail-placeholder"></div>
+        <h3 id="track-name">No Track Loaded</h3>
+        <button class="playlist-button" data-bs-toggle="modal" data-bs-target="#playlistModal">View Playlist</button>
+        <div class="music-controls">
+            <button onclick="prevSong()">⏮️</button>
+            <button id="play-btn" onclick="togglePlay()">▶️</button>
+            <button onclick="nextSong()">⏭️</button>
+        </div>
+        <div class="progress-bar-container" id="progress-bar-container">
+            <div class="progress-bar">
+                <div id="progress-bar-filled" class="progress-bar-filled"></div>
+            </div>
+        </div>
+        <audio id="audio-player">
+            <source id="audio-source" src="" type="audio/mpeg">
+        </audio>
+    </div>
+</div>
+
+<!-- Playlist Modal -->
+<div class="modal fade" id="playlistModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Playlist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr><th>Title</th><th>Play</th></tr>
+                    </thead>
+                    <tbody id="playlistTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript -->
+<script>
+document.getElementById("fetchEmotionBtn").addEventListener("click", async () => {
+    try {
+        const response = await fetch("http://127.0.0.1:5000/api/emotion/detect");
+        const data = await response.json();
+        if (data.emotion) {
+            document.getElementById("emotion-text").innerText = `Detected Emotion: ${data.emotion}`;
+            document.getElementById("emotion-emoji").innerText = getEmoji(data.emotion);
+            localStorage.setItem("detectedEmotion", data.emotion);
+        }
+    } catch (error) {
+        console.error("Error fetching emotion:", error);
+    }
+});
+
+document.getElementById("playlistModal").addEventListener("shown.bs.modal", fetchPlaylist);
+
+async function fetchPlaylist() {
+    let emotion = localStorage.getItem("detectedEmotion");
+    if (!emotion) {
+        console.warn("No detected emotion found in localStorage.");
+        return;
+    }
+
+    emotion = emotion.toLowerCase();
+
+    try {
+        const response = await fetch(`http://localhost:5000/api/emotion/music/${emotion}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const songs = await response.json();
+        const playlistTable = document.getElementById("playlistTableBody");
+        playlistTable.innerHTML = ""; // Clear previous content
+
+        if (songs.length === 0) {
+            playlistTable.innerHTML = `<tr><td colspan="2">No songs found for ${emotion}</td></tr>`;
+            return;
+        }
+
+        songs.forEach(song => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${song.title}</td>
+                <td>
+                    <button onclick="playSong('${song.musicFile}', '${song.title}', '${song.thumbnail}')">
+                        ▶️ Play
+                    </button>
+                </td>
+            `;
+            playlistTable.appendChild(row);
+        });
+    } catch (error) {
+        console.error("Error fetching playlist:", error);
+    }
+}
+
+const audioPlayer = document.getElementById("audio-player");
+const playBtn = document.getElementById("play-btn");
+const progressBarFilled = document.getElementById("progress-bar-filled");
+
+let currentSongIndex = 0;
+let songsList = [];
+
+function playSong(url, title, thumbnail) {
+    document.getElementById("audio-source").src = url;
+    document.getElementById("track-name").innerText = title;
+    
+    const thumbnailElement = document.getElementById("track-thumbnail");
+    if (thumbnail && thumbnail !== "") {
+        thumbnailElement.src = thumbnail;
+    }
+    
+    audioPlayer.load(); 
+    audioPlayer.play();
+    playBtn.innerText = "⏸️";
+
+    // Store the song in the list for next/prev functionality
+    songsList.push({ url, title, thumbnail });
+}
+
+
+audioPlayer.addEventListener('timeupdate', updateProgressBar);
+document.getElementById("progress-bar-container").addEventListener("click", setProgressBar);
+
+function updateProgressBar() {
+    const progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+    progressBarFilled.style.width = `${progress}%`;
+}
+
+function setProgressBar(event) {
+    const progressBarWidth = event.target.offsetWidth;
+    const clickPosition = event.offsetX;
+    const newTime = (clickPosition / progressBarWidth) * audioPlayer.duration;
+    audioPlayer.currentTime = newTime;
+}
+
+function togglePlay() {
+    if (audioPlayer.paused) {
+        audioPlayer.play();
+        playBtn.innerText = "⏸️";
+    } else {
+        audioPlayer.pause();
+        playBtn.innerText = "▶️";
+    }
+}
+
+function prevSong() {
+    if (currentSongIndex > 0) {
+        currentSongIndex--;
+        const song = songsList[currentSongIndex];
+        playSong(song.url, song.title, song.thumbnail);
+    }
+}
+
+function nextSong() {
+    if (currentSongIndex < songsList.length - 1) {
+        currentSongIndex++;
+        const song = songsList[currentSongIndex];
+        playSong(song.url, song.title, song.thumbnail);
+    }
+}
+
+function getEmoji(emotion) {
+    return {
+        "happy": "😃",
+        "sad": "😢",
+        "angry": "😡",
+        "surprised": "😲",
+        "neutral": "😐"
+    }[emotion.toLowerCase()] || "❓";
+}
+</script>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+</html>
