@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", function () {
     //  Signup Page: Register User
     let signupForm = document.getElementById("signup-form");
     if (signupForm) {
-        signupForm.addEventListener("submit", function (event) {
+        signupForm.addEventListener("submit",async function (event) {
             event.preventDefault();
 
             let name = document.getElementById("name").value.trim();
@@ -36,47 +36,62 @@ document.addEventListener("DOMContentLoaded", function () {
             if (password !== confirmPassword) {
                 alert("Passwords do not match.");
                 return;
+            }  
+
+            const requestBody ={
+                name: name,
+                email: email,
+                password:password
+
             }
 
-            // Retrieve existing users from localStorage or initialize an empty array
-            let users = JSON.parse(localStorage.getItem("users")) || [];
+            try{
+                const signUpUser = await fetch('http://localhost:5000/api/auth/register', {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(requestBody)
+                });
+                const response = await signUpUser.json();
+                if(response.ok){
+                    showToast('Sign up successful','success')
+                }
+                redirectTo('login.html');
 
-            // Check if email already exists
-            let existingUser = users.find(user => user.email === email);
-            if (existingUser) {
-                alert("This email is already registered. Please log in.");
-                return;
+            }catch(err){
+                showToast(err,'danger')
             }
-
-            // Add new user and save to localStorage
-            users.push({ name, email, password });
-            localStorage.setItem("users", JSON.stringify(users));
-
-            alert("Signup successful! Redirecting to login...");
-            redirectTo("login.html");
         });
     }
 
     //  Login Page: Authenticate User & Redirect to Module Selection
     let loginForm = document.getElementById("login-form");
     if (loginForm) {
-        loginForm.addEventListener("submit", function (event) {
+        loginForm.addEventListener("submit",async function (event) {
             event.preventDefault();
 
             let enteredEmail = document.getElementById("login-email").value.trim();
             let enteredPassword = document.getElementById("login-password").value.trim();
-
-            // Retrieve users from localStorage
-            let users = JSON.parse(localStorage.getItem("users")) || [];
-
             // Check if user exists
-            let validUser = users.find(user => user.email === enteredEmail && user.password === enteredPassword);
+            const requestBody ={
+                email: enteredEmail,
+                password:enteredPassword
 
-            if (validUser) {
-                alert("Login successful! Redirecting...");
-                redirectTo("moduleselection.html");
-            } else {
-                alert("Invalid email or password. Please try again.");
+            }
+
+            try{
+                const loginUser = await fetch('http://localhost:5000/api/auth/login', {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(requestBody)
+                });
+                const response = await loginUser.json();
+                if(response.ok){
+                    showToast('Login up successful','success')
+                }
+                redirectTo('moduleselection.html');
+
+            }catch(err){
+                showToast(err,'danger')
             }
         });
     }
@@ -107,3 +122,15 @@ document.addEventListener("DOMContentLoaded", function () {
 function goBack() {
     window.location.href = "moduleselection.html";
 }
+
+function showToast(message, type) {
+    Toastify({
+        text: message,
+        duration: 3000,
+        close: true,
+        gravity: "top",
+        position: "center",
+        backgroundColor: type === "success" ? "#28a745" : "#dc3545",
+    }).showToast();
+}
+
